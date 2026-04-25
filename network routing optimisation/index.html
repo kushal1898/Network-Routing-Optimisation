@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="NetRoute — Interactive network routing optimization tool using Bellman-Ford, Floyd-Warshall, and Edmonds-Karp graph algorithms with real-time visualization.">
+  <title>NetRoute — Network Routing Optimization</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS Play CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            navy: { 900: '#0f1117', 800: '#1a1f2e', 700: '#242938' },
+            cyan: { DEFAULT: '#00e5ff' },
+            flow: { green: '#00e676', red: '#ef4444', amber: '#ffb300' }
+          },
+          fontFamily: {
+            mono: ['Space Mono', 'monospace'],
+            ui: ['Outfit', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-navy-900 text-gray-200 font-ui h-screen flex flex-col overflow-hidden">
+
+  <!-- ═══════════════ NAVBAR ═══════════════ -->
+  <nav class="flex items-center justify-between px-6 py-3 bg-navy-800 border-b border-gray-800/60 flex-shrink-0 z-20">
+    <!-- Logo -->
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-cyan to-teal-400 flex items-center justify-center">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-navy-900" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+        </svg>
+      </div>
+      <h1 class="text-xl font-bold tracking-tight">
+        <span class="text-cyan">Net</span><span class="text-gray-200">Route</span>
+      </h1>
+    </div>
+
+    <!-- Algorithm Badges -->
+    <div class="hidden md:flex items-center gap-2">
+      <span class="algo-badge px-3 py-1 rounded-full text-xs font-mono border border-blue-500/30 text-blue-400 bg-blue-900/20">Bellman-Ford</span>
+      <span class="algo-badge px-3 py-1 rounded-full text-xs font-mono border border-teal-500/30 text-teal-400 bg-teal-900/20">Floyd-Warshall</span>
+      <span class="algo-badge px-3 py-1 rounded-full text-xs font-mono border border-green-500/30 text-green-400 bg-green-900/20">Edmonds-Karp</span>
+    </div>
+
+    <!-- Reset Button -->
+    <button id="btn-navbar-reset" class="glow-btn flex items-center gap-2 px-4 py-2 rounded-lg bg-navy-700 border border-gray-700 text-gray-300 text-sm hover:border-red-500/50 hover:text-red-300 transition-all duration-300">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+      </svg>
+      Reset
+    </button>
+  </nav>
+
+  <!-- ═══════════════ MAIN CONTENT ═══════════════ -->
+  <div class="flex flex-1 overflow-hidden">
+
+    <!-- ────── LEFT PANEL (35%) ────── -->
+    <div class="left-panel w-[35%] min-w-[340px] max-w-[480px] overflow-y-auto border-r border-gray-800/60 bg-navy-900 p-5 flex flex-col gap-5">
+
+      <!-- Section A: Add Nodes -->
+      <section id="section-add-nodes">
+        <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+          <span class="w-5 h-5 rounded bg-cyan/10 text-cyan flex items-center justify-center text-xs font-bold">A</span>
+          Add Nodes
+        </h2>
+        <div class="flex gap-2">
+          <input type="text" id="node-id" placeholder="e.g. A, Router1" class="flex-1 px-3 py-2 rounded-lg bg-navy-800 border border-gray-700 text-gray-200 text-sm font-mono placeholder-gray-600 focus:outline-none focus:border-cyan/50 focus:ring-1 focus:ring-cyan/20 transition-colors">
+          <button id="btn-add-node" class="glow-btn px-4 py-2 rounded-lg bg-cyan/10 border border-cyan/30 text-cyan text-sm font-medium hover:bg-cyan/20 transition-all duration-300">
+            Add Node
+          </button>
+        </div>
+        <div id="node-chips" class="flex flex-wrap gap-2 mt-3 min-h-[32px]"></div>
+      </section>
+
+      <!-- Section B: Add Edges -->
+      <section id="section-add-edges">
+        <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+          <span class="w-5 h-5 rounded bg-cyan/10 text-cyan flex items-center justify-center text-xs font-bold">B</span>
+          Add Edges
+        </h2>
+        <div class="grid grid-cols-2 gap-2 mb-2">
+          <div>
+            <label class="text-xs text-gray-500 mb-1 block">From</label>
+            <select id="from-node" class="w-full px-3 py-2 rounded-lg bg-navy-800 border border-gray-700 text-gray-200 text-sm font-mono focus:outline-none focus:border-cyan/50 transition-colors">
+              <option value="">Select node</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-xs text-gray-500 mb-1 block">To</label>
+            <select id="to-node" class="w-full px-3 py-2 rounded-lg bg-navy-800 border border-gray-700 text-gray-200 text-sm font-mono focus:outline-none focus:border-cyan/50 transition-colors">
+              <option value="">Select node</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-2 mb-3">
+          <div>
+            <label class="text-xs text-gray-500 mb-1 block">Distance / Latency</label>
+            <input type="number" id="edge-distance" min="1" value="10" class="w-full px-3 py-2 rounded-lg bg-navy-800 border border-gray-700 text-gray-200 text-sm font-mono focus:outline-none focus:border-cyan/50 transition-colors">
+          </div>
+          <div>
+            <label class="text-xs text-gray-500 mb-1 block">Bandwidth (Mbps)</label>
+            <input type="number" id="edge-capacity" min="1" value="100" class="w-full px-3 py-2 rounded-lg bg-navy-800 border border-gray-700 text-gray-200 text-sm font-mono focus:outline-none focus:border-cyan/50 transition-colors">
+          </div>
+        </div>
+        <button id="btn-add-edge" class="glow-btn w-full px-4 py-2 rounded-lg bg-cyan/10 border border-cyan/30 text-cyan text-sm font-medium hover:bg-cyan/20 transition-all duration-300">
+          Add Edge
+        </button>
+
+        <!-- Edge Table -->
+        <div class="mt-3 max-h-[200px] overflow-y-auto rounded-lg border border-gray-800/60">
+          <table class="w-full text-xs">
+            <thead class="sticky top-0 bg-navy-800">
+              <tr class="border-b border-gray-700">
+                <th class="text-left py-2 px-3 text-gray-400 font-medium">From</th>
+                <th class="text-left py-2 px-3 text-gray-400 font-medium">To</th>
+                <th class="text-left py-2 px-3 text-gray-400 font-medium">Dist</th>
+                <th class="text-left py-2 px-3 text-gray-400 font-medium">BW</th>
+                <th class="py-2 px-3 w-8"></th>
+              </tr>
+            </thead>
+            <tbody id="edge-table-body">
+              <tr><td colspan="5" class="text-center py-4 text-gray-500 text-sm">No edges added yet</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Section C: Algorithm Controls -->
+      <section id="section-algorithm-controls">
+        <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+          <span class="w-5 h-5 rounded bg-cyan/10 text-cyan flex items-center justify-center text-xs font-bold">C</span>
+          Algorithm Controls
+        </h2>
+        <div class="grid grid-cols-2 gap-2 mb-3">
+          <div>
+            <label class="text-xs text-gray-500 mb-1 block">Source Node</label>
+            <select id="source-node" class="w-full px-3 py-2 rounded-lg bg-navy-800 border border-gray-700 text-gray-200 text-sm font-mono focus:outline-none focus:border-orange-500/50 transition-colors">
+              <option value="">Select node</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-xs text-gray-500 mb-1 block">Sink Node (Max Flow)</label>
+            <select id="sink-node" class="w-full px-3 py-2 rounded-lg bg-navy-800 border border-gray-700 text-gray-200 text-sm font-mono focus:outline-none focus:border-purple-500/50 transition-colors">
+              <option value="">Select node</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Run Buttons: 2x2 grid -->
+        <div class="grid grid-cols-2 gap-2 mb-3">
+          <button id="btn-bellman-ford" class="glow-btn px-3 py-2.5 rounded-lg bg-blue-900/30 border border-blue-500/40 text-blue-400 text-sm font-medium hover:bg-blue-900/50 hover:border-blue-400 transition-all duration-300">
+            ▶ Bellman-Ford
+          </button>
+          <button id="btn-floyd-warshall" class="glow-btn px-3 py-2.5 rounded-lg bg-teal-900/30 border border-teal-500/40 text-teal-400 text-sm font-medium hover:bg-teal-900/50 hover:border-teal-400 transition-all duration-300">
+            ▶ Floyd-Warshall
+          </button>
+          <button id="btn-max-flow" class="glow-btn px-3 py-2.5 rounded-lg bg-green-900/30 border border-green-500/40 text-green-400 text-sm font-medium hover:bg-green-900/50 hover:border-green-400 transition-all duration-300">
+            ▶ Max Flow
+          </button>
+          <button id="btn-run-all" class="glow-btn px-3 py-2.5 rounded-lg text-sm font-medium text-white transition-all duration-300 border border-transparent hover:border-white/20" style="background: linear-gradient(135deg, #3b82f6, #14b8a6, #22c55e);">
+            ⚡ Run All
+          </button>
+        </div>
+
+        <!-- Step-by-Step Buttons -->
+        <div class="grid grid-cols-3 gap-2 mb-3">
+          <button id="btn-steps-bf" class="px-2 py-1.5 rounded-lg bg-blue-900/15 border border-blue-500/20 text-blue-400/80 text-xs font-medium hover:bg-blue-900/30 hover:border-blue-400/50 transition-all duration-300" title="Show Bellman-Ford step-by-step">
+            🔬 BF Steps
+          </button>
+          <button id="btn-steps-fw" class="px-2 py-1.5 rounded-lg bg-teal-900/15 border border-teal-500/20 text-teal-400/80 text-xs font-medium hover:bg-teal-900/30 hover:border-teal-400/50 transition-all duration-300" title="Show Floyd-Warshall step-by-step">
+            🔬 FW Steps
+          </button>
+          <button id="btn-steps-mf" class="px-2 py-1.5 rounded-lg bg-green-900/15 border border-green-500/20 text-green-400/80 text-xs font-medium hover:bg-green-900/30 hover:border-green-400/50 transition-all duration-300" title="Show Max Flow step-by-step">
+            🔬 MF Steps
+          </button>
+        </div>
+
+        <!-- Utility Buttons -->
+        <div class="flex gap-2">
+          <button id="btn-load-example" class="flex-1 px-3 py-2 rounded-lg bg-navy-700 border border-gray-700 text-gray-300 text-xs font-medium hover:border-cyan/40 hover:text-cyan transition-all duration-300">
+            📡 Load Example Network
+          </button>
+          <button id="btn-reset" class="flex-1 px-3 py-2 rounded-lg bg-navy-700 border border-gray-700 text-gray-300 text-xs font-medium hover:border-red-500/40 hover:text-red-300 transition-all duration-300">
+            🗑 Reset All
+          </button>
+        </div>
+      </section>
+
+      <!-- Section D: Results Panel -->
+      <section id="section-results">
+        <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+          <span class="w-5 h-5 rounded bg-cyan/10 text-cyan flex items-center justify-center text-xs font-bold">D</span>
+          Results
+        </h2>
+
+        <!-- Tab Bar -->
+        <div class="flex border-b border-gray-800 mb-3">
+          <button id="tab-bellman-ford" class="tab-btn active px-4 py-2 text-xs font-medium text-gray-400 border-b-2 border-transparent transition-colors hover:text-gray-200">
+            Bellman-Ford
+          </button>
+          <button id="tab-floyd-warshall" class="tab-btn px-4 py-2 text-xs font-medium text-gray-400 border-b-2 border-transparent transition-colors hover:text-gray-200">
+            Floyd-Warshall
+          </button>
+          <button id="tab-max-flow" class="tab-btn px-4 py-2 text-xs font-medium text-gray-400 border-b-2 border-transparent transition-colors hover:text-gray-200">
+            Max Flow
+          </button>
+        </div>
+
+        <!-- Tab Content -->
+        <div id="bf-results" class="min-h-[80px]">
+          <p class="text-gray-500 text-sm text-center py-6">Run Bellman-Ford to see results</p>
+        </div>
+        <div id="fw-results" class="min-h-[80px] hidden">
+          <p class="text-gray-500 text-sm text-center py-6">Run Floyd-Warshall to see results</p>
+        </div>
+        <div id="mf-results" class="min-h-[80px] hidden">
+          <p class="text-gray-500 text-sm text-center py-6">Run Max Flow to see results</p>
+        </div>
+      </section>
+
+      <!-- Section E: Step-by-Step Viewer -->
+      <section id="step-viewer-panel" class="hidden">
+        <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+          <span class="w-5 h-5 rounded bg-cyan/10 text-cyan flex items-center justify-center text-xs font-bold">E</span>
+          Algorithm Steps
+          <span id="step-algo-label" class="ml-auto text-xs font-mono text-cyan/70"></span>
+        </h2>
+
+        <!-- Progress Bar -->
+        <div class="step-progress-bar mb-3">
+          <div id="step-progress" class="step-progress-fill" style="width: 0%"></div>
+        </div>
+
+        <!-- Controls Row -->
+        <div class="flex items-center gap-2 mb-3">
+          <button id="step-first-btn" class="step-ctrl-btn" title="First">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+          </button>
+          <button id="step-prev-btn" class="step-ctrl-btn" title="Previous">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+          </button>
+          <button id="step-play-btn" class="step-ctrl-btn play-btn" title="Play">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+          </button>
+          <button id="step-next-btn" class="step-ctrl-btn" title="Next">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+          </button>
+          <button id="step-last-btn" class="step-ctrl-btn" title="Last">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+          </button>
+
+          <span class="text-xs text-gray-500 font-mono ml-auto" id="step-counter">0 / 0</span>
+        </div>
+
+        <!-- Speed Selector -->
+        <div class="flex items-center gap-2 mb-3">
+          <span class="text-xs text-gray-500 font-ui">Speed:</span>
+          <button class="step-speed-btn" data-speed="1200">0.5×</button>
+          <button class="step-speed-btn active" data-speed="800">1×</button>
+          <button class="step-speed-btn" data-speed="400">2×</button>
+          <button class="step-speed-btn" data-speed="200">4×</button>
+          <button id="step-close-btn" class="ml-auto step-ctrl-btn" title="Close Steps Panel" style="width: 24px; height: 24px;">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+          </button>
+        </div>
+
+        <!-- Timeline -->  
+        <div id="step-timeline" class="mb-3"></div>
+
+        <!-- Step Detail Card -->
+        <div id="step-detail" class="mb-2">
+          <p class="text-gray-500 text-sm text-center py-4">Run an algorithm with Steps to begin</p>
+        </div>
+      </section>
+
+      <!-- Section F: Utilization Chart -->
+      <section id="chart-container" class="hidden">
+        <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+          <span class="w-5 h-5 rounded bg-cyan/10 text-cyan flex items-center justify-center text-xs font-bold">F</span>
+          Bandwidth Utilization
+        </h2>
+        <div class="bg-navy-800 rounded-lg border border-gray-800/60 p-3" style="height: 260px;">
+          <canvas id="utilization-chart"></canvas>
+        </div>
+      </section>
+
+    </div><!-- end left panel -->
+
+    <!-- ────── RIGHT PANEL (65%) ────── -->
+    <div class="flex-1 flex flex-col relative bg-navy-800">
+
+      <!-- Cytoscape Canvas -->
+      <div id="cy" class="flex-1 w-full"></div>
+
+      <!-- Zoom Controls (top-right overlay) -->
+      <div class="absolute top-3 right-3 flex flex-col gap-1 z-10">
+        <button id="btn-zoom-in" class="w-9 h-9 rounded-lg bg-navy-900/80 border border-gray-700 text-gray-300 text-lg font-bold hover:border-cyan/40 hover:text-cyan transition-all backdrop-blur-sm" title="Zoom In">+</button>
+        <button id="btn-zoom-out" class="w-9 h-9 rounded-lg bg-navy-900/80 border border-gray-700 text-gray-300 text-lg font-bold hover:border-cyan/40 hover:text-cyan transition-all backdrop-blur-sm" title="Zoom Out">−</button>
+        <button id="btn-fit" class="w-9 h-9 rounded-lg bg-navy-900/80 border border-gray-700 text-gray-300 text-xs font-bold hover:border-cyan/40 hover:text-cyan transition-all backdrop-blur-sm" title="Fit to Screen">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Color Legend (bottom overlay) -->
+      <div class="absolute bottom-0 left-0 right-0 bg-navy-900/90 backdrop-blur-sm border-t border-gray-800/60 px-4 py-2 z-10">
+        <div class="flex items-center justify-center gap-5 flex-wrap text-xs">
+          <span class="flex items-center gap-1.5">
+            <span class="w-2.5 h-2.5 rounded-full bg-cyan inline-block"></span>
+            <span class="text-gray-400">Default</span>
+          </span>
+          <span class="flex items-center gap-1.5">
+            <span class="w-2.5 h-2.5 rounded-full bg-orange-400 inline-block"></span>
+            <span class="text-gray-400">Source</span>
+          </span>
+          <span class="flex items-center gap-1.5">
+            <span class="w-2.5 h-2.5 rounded-full bg-purple-400 inline-block"></span>
+            <span class="text-gray-400">Sink</span>
+          </span>
+          <span class="flex items-center gap-1.5">
+            <span class="w-3 h-0.5 bg-blue-500 inline-block rounded"></span>
+            <span class="text-gray-400">Bellman-Ford</span>
+          </span>
+          <span class="flex items-center gap-1.5">
+            <span class="w-3 h-0.5 bg-yellow-400 inline-block rounded"></span>
+            <span class="text-gray-400">Floyd-Warshall</span>
+          </span>
+          <span class="flex items-center gap-1.5">
+            <span class="w-3 h-0.5 bg-green-500 inline-block rounded"></span>
+            <span class="text-gray-400">Max Flow</span>
+          </span>
+          <span class="flex items-center gap-1.5">
+            <span class="w-3 h-0.5 bg-red-500 inline-block rounded"></span>
+            <span class="text-gray-400">Bottleneck</span>
+          </span>
+        </div>
+      </div>
+
+    </div><!-- end right panel -->
+
+  </div><!-- end main content -->
+
+  <!-- Toast Container -->
+  <div id="toast-container"></div>
+
+  <!-- ═══════════════ CDN SCRIPTS ═══════════════ -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- App Scripts (order matters) -->
+  <script src="graph.js"></script>
+  <script src="algorithms.js"></script>
+  <script src="visualizer.js"></script>
+  <script src="charts.js"></script>
+  <script src="step-viewer.js"></script>
+  <script src="ui.js"></script>
+  <script src="main.js"></script>
+
+</body>
+</html>
